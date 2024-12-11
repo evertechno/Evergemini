@@ -1,6 +1,8 @@
 import streamlit as st
 from transformers import pipeline
 import os
+import torchaudio
+import torch
 
 # Load Whisper Model
 @st.cache_resource
@@ -13,7 +15,20 @@ pipe = load_model()
 # Function to Transcribe Audio
 def transcribe_audio(file_path):
     st.write(f"Processing file: {file_path}")
-    result = pipe(file_path)
+
+    # Load audio using torchaudio
+    waveform, sample_rate = torchaudio.load(file_path)
+
+    # Ensure the waveform is in float32
+    waveform = waveform.to(torch.float32)
+
+    # Check the model expects the correct sample rate (Whisper models expect 16000 Hz)
+    if sample_rate != 16000:
+        resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
+        waveform = resampler(waveform)
+
+    # Transcribe the audio
+    result = pipe(waveform.numpy())
     return result["text"]
 
 # Speaker Labeling Function (Placeholder Logic)
